@@ -15,20 +15,30 @@ class structr:
 		self.parser.add_argument('--show-hidden', action='store_true', help='Shows dotfiles and hidden folders.')
 
 	def map_tree(self, path, depth, show_hidden):
-		pass
+		print(f'\n{os.path.basename(os.path.realpath(path))}/')
+		for content in os.listdir(path):
+			print(f'{os.path.basename(os.path.realpath(content))}/')
+			distance = (os.path.relpath(content, path)).count(os.sep)
+			if os.path.isdir(content):
+				if depth and distance > depth:
+					print(f'{content}/')
+				else:
+					self.map_tree(content, self.args.depth, self.args.show_hidden)
+			else:
+				print(f'{content}')
 
-	def build_tree(self, path, depth, show_hidden):
-		pass
+	def build_tree(self, build, path, depth, show_hidden):
+                print(f'building {build} at {path} with depth {depth}, showhidden = {show_hidden}')
 
 	def main(self):
 		#setup
-		args = self.parser.parse_args()
+		self.args = self.parser.parse_args()
 
 		#main script
-		if args.build:
-			self.build_tree(args.path, args.depth, args.show_hidden)
+		if self.args.build:
+			self.build_tree(self.args.build, self.args.path, self.args.depth, self.args.show_hidden)
 		else:
-			self.map_tree(args.path, args.depth, args.show_hidden)
+			self.map_tree(self.args.path, self.args.depth, self.args.show_hidden)
 
 if __name__ == "__main__":
 	structr().main()
