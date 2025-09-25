@@ -4,6 +4,8 @@
 
 import os
 import argparse
+from pathlib import Path
+import re
 
 class structr:
 	def __init__(self):
@@ -11,8 +13,8 @@ class structr:
 		self.parser = argparse.ArgumentParser(prog='structr',
 		description='A CLI tool to map and build trees using text.')
 		self.parser.add_argument('path', nargs='?', default='.', help='Directory to map.')
-		self.parser.add_argument('-b', '--build', type=str, metavar='', help='Builds a given tree from text. Usage: structr -b <tree>')
-		self.parser.add_argument('-d', '--depth', type=int, default=None, metavar='', help='Sets depth of recursion (default: unlimited). Usage: structr / -d 2')
+		self.parser.add_argument('-b', '--build', type=str, metavar='', help='Builds a given tree from text. Usage: structr -b "tree"')
+		self.parser.add_argument('-d', '--depth', type=int, default=None, metavar='', help='Sets depth of recursion (default: unlimited). Usage: structr . -d 2')
 		self.parser.add_argument('--show-hidden', action='store_true', help='Shows dotfiles and hidden folders.')
 
 	def map_tree(self, path, depth, show_hidden):
@@ -46,7 +48,39 @@ class structr:
 				print(os.path.basename(contents[i]))
 
 	def build_tree(self, build, path, depth, show_hidden):
-                print(f'building {build} at {path} with depth {depth}, showhidden = {show_hidden}')
+		lines = [line for line in build.splitlines() if line.strip()]
+		stack = [(path, -1)]  # (path, indent level)
+
+		for idx, line in enumerate(lines):
+			indent = len(line) - len(line.lstrip())
+			name = re.sub(r"[├└│─]", "", line).strip()
+			if not name:
+				continue
+			if not show_hidden and name.startswith("."):
+				continue
+
+            # Determine if this line should be a directory
+			is_dir = name.endswith("/")
+			if not is_dir:
+                # Look ahead: if the next line is more indented, treat as directory
+				if idx + 1 < len(lines):
+					next_indent = len(lines[idx + 1]) - len(lines[idx + 1].lstrip())
+					if next_indent > indent:
+						is_dir = True
+
+            # Find parent path based on indentation
+			while stack and indent <= stack[-1][1]:
+				stack.pop()
+
+			parent_path = stack[-1][0] if stack else path
+			full_path = os.path.join(parent_path, name)
+
+			if is_dir:
+				Path(full_path).mkdir(parents=True, exist_ok=True)
+				stack.append((full_path, indent))
+			else:
+				Path(full_path).parent.mkdir(parents=True, exist_ok=True)
+				Path(full_path).touch()
 
 	def main(self):
 		#setup
