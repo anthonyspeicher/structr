@@ -7,6 +7,7 @@ import argparse
 from pathlib import Path
 import re
 import filetype
+import curses
 #import shutil
 
 BLUE = "\033[34m"
@@ -24,7 +25,7 @@ class structr:
 		#args
 		self.parser = argparse.ArgumentParser(prog='structr',
 		description='A CLI tool to map, build, and traverse directories.')
-		self.parser.add_argument('path', nargs='?', default='.', help='Directory to map.')
+		self.parser.add_argument('path', nargs='?', default='.', help='Directory to modify/view')
 		self.parser.add_argument('-m', '--map', type=str, metavar='', help='Maps a given directory. Usage: structr -m ../')
 		self.parser.add_argument('-b', '--build', type=str, metavar='', help='Builds a given tree from text. Usage: structr -b "<tree>"')
 		self.parser.add_argument('-d', '--depth', type=int, default=None, metavar='', help='Sets depth of recursion (default: unlimited). Usage: structr ../ -d 2')
@@ -93,8 +94,15 @@ class structr:
 			else:
 				Path(item).touch()
 
-	def traverse(self):
-		pass
+	def traverse(self, stdscr, path, hidden):
+		#setup - initial navigation, invisible cursor, initialize dirs list
+		os.chdir(os.path.realpath(path))
+		curses.noecho()
+		curses.cbreak()
+		stdscr.keypad(True)
+		dirs = [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
+		dirs.sort()
+		print(dirs)
 
 	def main(self):
 		#setup
@@ -107,7 +115,8 @@ class structr:
 		elif self.args.map:
 			self.map_tree(self.args.map, self.args.depth, self.args.show_hidden)
 		else:
-			self.traverse()
+			stdscr = curses.initscr()
+			curses.wrapper(lambda stdscr: self.traverse(stdscr, self.args.path, self.args.show_hidden))
 
 if __name__ == "__main__":
 	structr().main()
