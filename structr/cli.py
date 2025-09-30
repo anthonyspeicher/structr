@@ -6,16 +6,29 @@ import os
 import argparse
 from pathlib import Path
 import re
+import filetype
+#import shutil
+
+BLUE = "\033[34m"
+GREEN = "\033[0;32m"
+CYAN = "\033[36m"
+BOLD_CYAN = "\033[1;36m"
+PINK = "\\x1b[38;5;201m"
+RED = "\x1b[31m"
+MAGENTA = "\x1b[35m"
+RESET = "\033[0m"
+
 
 class structr:
 	def __init__(self):
 		#args
 		self.parser = argparse.ArgumentParser(prog='structr',
-		description='A CLI tool to map and build trees using text.')
+		description='A CLI tool to map, build, and traverse directories.')
 		self.parser.add_argument('path', nargs='?', default='.', help='Directory to map.')
-		self.parser.add_argument('-b', '--build', type=str, metavar='', help='Builds a given tree from text. Usage: structr -b "tree"')
-		self.parser.add_argument('-d', '--depth', type=int, default=None, metavar='', help='Sets depth of recursion (default: unlimited). Usage: structr . -d 2')
-		self.parser.add_argument('--show-hidden', action='store_true', help='Shows dotfiles and hidden folders.')
+		self.parser.add_argument('-m', '--map', type=str, metavar='', help='Maps a given directory. Usage: structr -m ../')
+		self.parser.add_argument('-b', '--build', type=str, metavar='', help='Builds a given tree from text. Usage: structr -b "<tree>"')
+		self.parser.add_argument('-d', '--depth', type=int, default=None, metavar='', help='Sets depth of recursion (default: unlimited). Usage: structr ../ -d 2')
+		self.parser.add_argument('--show-hidden', action='store_true', help='Shows or builds dotfiles and hidden folders.')
 
 	def map_tree(self, path, depth, show_hidden):
 		#var initialization
@@ -25,7 +38,7 @@ class structr:
 			contents = [x for x in contents if not x.startswith('.')]
 
 		#main - print root, recurse if subdir else print lines then filenames
-		print(f'{os.path.basename(os.path.realpath(path))}/')
+		print(f'{BLUE}{os.path.basename(os.path.realpath(path))}/{RESET}')
 		for i in range(len(contents)):
 			contents[i] = os.path.join(path, contents[i])
 			distance = (os.path.relpath(contents[i], self.args.path)).count(os.sep)
@@ -39,48 +52,49 @@ class structr:
 				print(f'├── ', end='')
 
 			#print contents/depth check
-			if os.path.isdir(contents[i]):
+			if os.path.isdir(contents[i]) and not os.path.islink(contents[i]):
 				if depth and (distance >= self.args.depth):
-					print(f'{os.path.basename(contents[i])}/')
+					print(f'{BLUE}{os.path.basename(contents[i])}/{RESET}')
 				else:
 					self.map_tree(contents[i], self.args.depth, self.args.show_hidden)
 			else:
-				print(os.path.basename(contents[i]))
+				#print file using ls --colors standard
+				type = filetype.guess(contents[i])
+				if os.path.islink(contents[i]):
+					print(BOLD_CYAN, end='')
+				#application check - broken currently, can't find good solution
+				#elif shutil.which(contents[i]):
+					#print(GREEN, end='')
+				elif type != None and type.startswith('application/'):
+					print(RED, end='')
+				elif type != None and type.startswith('image/'):
+					print(MAGENTA, end='')
+				elif type != None and type.startswith('audio/'):
+					print(CYAN, end='')
+				print(f'{os.path.basename(contents[i])}{RESET}')
 
 	def build_tree(self, build, path, depth, show_hidden):
-		lines = [line for line in build.splitlines() if line.strip()]
-		stack = [(path, -1)]  # (path, indent level)
+#(i for c in list[i] while not c.isalpha())
+		#var initialization
+		contents = {os.path.join(path, re.sub(r"[├└│─]", "    ", line).strip()):count(i for c in line if not c.isalpha()) for line in build.splitlines() if line.strip()}
+		if not show_hidden:
+			contents = [x for x in contents if not x.startswith('.')]
+		print(contents)
 
-		for idx, line in enumerate(lines):
-			indent = len(line) - len(line.lstrip())
-			name = re.sub(r"[├└│─]", "", line).strip()
-			if not name:
-				continue
-			if not show_hidden and name.startswith("."):
-				continue
+                #main - print root, recurse if subdir else print lines then filenames
+		for item in contents:
+			distance = (os.path.relpath(item, self.args.path)).count(os.sep)
 
-            # Determine if this line should be a directory
-			is_dir = name.endswith("/")
-			if not is_dir:
-                # Look ahead: if the next line is more indented, treat as directory
-				if idx + 1 < len(lines):
-					next_indent = len(lines[idx + 1]) - len(lines[idx + 1].lstrip())
-					if next_indent > indent:
-						is_dir = True
-
-            # Find parent path based on indentation
-			while stack and indent <= stack[-1][1]:
-				stack.pop()
-
-			parent_path = stack[-1][0] if stack else path
-			full_path = os.path.join(parent_path, name)
-
-			if is_dir:
-				Path(full_path).mkdir(parents=True, exist_ok=True)
-				stack.append((full_path, indent))
+                        #print contents/depth check
+			if item.endswith("/"):
+				Path(item).mkdir(parents=True, exist_ok=True)
+				if not (depth and (distance >= self.args.depth)):
+					self.build_tree(build, item, self.args.depth, self.args.show_hidden)
 			else:
-				Path(full_path).parent.mkdir(parents=True, exist_ok=True)
-				Path(full_path).touch()
+				Path(item).touch()
+
+	def traverse(self):
+		pass
 
 	def main(self):
 		#setup
@@ -90,8 +104,10 @@ class structr:
 		#main script
 		if self.args.build:
 			self.build_tree(self.args.build, self.args.path, self.args.depth, self.args.show_hidden)
+		elif self.args.map:
+			self.map_tree(self.args.map, self.args.depth, self.args.show_hidden)
 		else:
-			self.map_tree(self.args.path, self.args.depth, self.args.show_hidden)
+			self.traverse()
 
 if __name__ == "__main__":
 	structr().main()
