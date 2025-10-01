@@ -95,14 +95,57 @@ class structr:
 				Path(item).touch()
 
 	def traverse(self, stdscr, path, hidden):
-		#setup - initial navigation, invisible cursor, initialize dirs list
-		os.chdir(os.path.realpath(path))
-		curses.noecho()
-		curses.cbreak()
-		stdscr.keypad(True)
-		dirs = [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
-		dirs.sort()
-		print(dirs)
+		#setup - invisible cursor, highlighter initialization
+		curses.curs_set(0)
+		selected = 0
+
+		while True:
+			stdscr.clear()
+
+			#print dirs with highlight
+			stdscr.addstr(0, 0, os.path.realpath(path), curses.A_BOLD)
+			stdscr.addstr(1, 0, '-' * (len(os.path.realpath(path)) + 8))
+
+			dirs = [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
+			if not hidden:
+				dirs = [i for i in dirs if not i.startswith('.')]
+			dirs.sort()
+
+			for x, i in enumerate(dirs):
+				if x == selected:
+					stdscr.addstr(x + 3, 2, i, curses.A_REVERSE)
+				else:
+					stdscr.addstr(x + 3, 2, i)
+
+			stdscr.refresh()
+
+			#handle keys
+			c = stdscr.getch()
+
+			if c in [curses.KEY_LEFT, ord('j')] and os.path.exists(os.path.dirname(path)):
+				path = os.path.dirname(path)
+				selected = 0
+
+			elif c in [curses.KEY_ENTER, 10, 13]:
+				return path
+
+			if len(dirs) > 0:
+
+				if c in [curses.KEY_UP, ord('l')]:
+					selected = (selected - 1) % len(dirs)
+
+				elif c in [curses.KEY_DOWN, ord('k')]:
+        	                        selected = (selected + 1) % len(dirs)
+
+				elif c == curses.KEY_PPAGE:
+                        	        selected = 0
+
+				elif c == curses.KEY_NPAGE:
+        	                        selected = len(dirs) - 1
+
+				elif c in [curses.KEY_RIGHT, ord(';')]:
+					path = os.path.join(path, dirs[selected])
+					selected = 0
 
 	def main(self):
 		#setup
@@ -116,7 +159,7 @@ class structr:
 			self.map_tree(self.args.map, self.args.depth, self.args.show_hidden)
 		else:
 			stdscr = curses.initscr()
-			curses.wrapper(lambda stdscr: self.traverse(stdscr, self.args.path, self.args.show_hidden))
+			curses.wrapper(lambda stdscr: self.traverse(stdscr, os.path.realpath(self.args.path), self.args.show_hidden))
 
 if __name__ == "__main__":
 	structr().main()
