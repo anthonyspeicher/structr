@@ -32,30 +32,14 @@ class structr:
 		self.parser.add_argument('--show-hidden', action='store_true', help='Shows or builds dotfiles and hidden folders.')
 
 	def map_tree(self, path, depth, show_hidden):
+		print(f'{BLUE}{os.path.basename(os.path.realpath(path))}/{RESET}')
 		#var initialization
 		indent = '    '
-		dirs = set(i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i)) and not os.path.islink(os.path.join(path, i)))
-		contents = set(os.listdir(path))
-		contents = contents - dirs
+		contents = sorted(os.listdir(path), key=lambda x: os.path.isdir(os.path.join(path, x)), reverse=True)
 		if not show_hidden:
-			dirs = [i for i in dirs if not i.startswith('.')]
 			contents = [i for i in contents if not i.startswith('.')]
 
 		#main - recurse if subdir else print files
-		for i in dirs:
-			distance = (os.path.relpath(i, self.args.path)).count(os.sep)
-			#print for each subdir
-			print('│   ' * distance, end='')
-			print(f'{indent * (distance - 1)}', end='')
-			if i == len(contents) - 1:
-				print(f'└── ', end='')
-			else:
-				print(f'├── ', end='')
-
-			print(f'{BLUE}{os.path.basename(i)}/{RESET}')
-			if not (depth and (distance >= self.args.depth)):
-				self.map_tree(os.path.join(path,i), self.args.depth, self.args.show_hidden)
-
 		for i in range(len(contents)):
 			contents[i] = os.path.join(path, contents[i])
 			distance = (os.path.relpath(contents[i], self.args.path)).count(os.sep)
@@ -69,21 +53,27 @@ class structr:
 				print(f'├── ', end='')
 
 			#print contents/depth check
-			
+			if os.path.isdir(os.path.join(path, contents[i])):
+				if depth and (distance >= self.args.depth):
+					print(f'{BLUE}{os.path.basename(contents[i])}/{RESET}')
+				else:
+					self.map_tree(os.path.join(path, contents[i]), self.args.depth, self.args.show_hidden)
+
+			else:
 				#print file using ls --colors standard
-			type = filetype.guess(contents[i])
-			if os.path.islink(contents[i]):
-				print(BOLD_CYAN, end='')
-			#application check - broken currently, can't find good solution
-			#elif shutil.which(contents[i]):
-				#print(GREEN, end='')
-			elif type != None and str(type).startswith('application/'):
-				print(RED, end='')
-			elif type != None and str(type).startswith('image/'):
-				print(MAGENTA, end='')
-			elif type != None and str(type).startswith('audio/'):
-				print(CYAN, end='')
-			print(f'{os.path.basename(contents[i])}{RESET}')
+				type = filetype.guess(contents[i])
+				if os.path.islink(contents[i]):
+					print(BOLD_CYAN, end='')
+				#application check - broken currently, can't find good solution
+				#elif shutil.which(contents[i]):
+					#print(GREEN, end='')
+				elif type != None and str(type).startswith('application/'):
+					print(RED, end='')
+				elif type != None and str(type).startswith('image/'):
+					print(MAGENTA, end='')
+				elif type != None and str(type).startswith('audio/'):
+					print(CYAN, end='')
+				print(f'{os.path.basename(contents[i])}{RESET}')
 
 	def build_tree(self, build, path, depth, show_hidden):
 #(i for c in list[i] while not c.isalpha())
