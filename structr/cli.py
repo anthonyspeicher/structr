@@ -42,22 +42,21 @@ class structr:
 		#main - recurse if subdir else print files
 		for i in range(len(contents)):
 			contents[i] = os.path.join(path, contents[i])
-			distance = (os.path.relpath(contents[i], self.args.path)).count(os.sep)
+			distance = (os.path.relpath(contents[i], self.args.path)).count(os.sep) + 1
 
 			#print for each file
-			print('│   ' * distance, end='')
-			print(f'{indent * (distance - 1)}', end='')
+			print(f'{indent * (distance - (distance - 1))}', end='')
+			print('│   ' * (distance - 1), end='')
 			if i == len(contents) - 1:
 				print(f'└── ', end='')
 			else:
 				print(f'├── ', end='')
 
-			#print contents/depth check
-			if os.path.isdir(os.path.join(path, contents[i])):
+			if os.path.isdir(contents[i]):
 				if depth and (distance >= self.args.depth):
 					print(f'{BLUE}{os.path.basename(contents[i])}/{RESET}')
 				else:
-					self.map_tree(os.path.join(path, contents[i]), self.args.depth, self.args.show_hidden)
+					self.map_tree(contents[i], self.args.depth, self.args.show_hidden)
 
 			else:
 				#print file using ls --colors standard
