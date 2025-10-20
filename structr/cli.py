@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import filetype
 import curses
+import subprocess
 #import shutil
 
 BLUE = "\033[34m"
@@ -123,8 +124,9 @@ class structr:
 			c = stdscr.getch()
 
 			if c in [curses.KEY_LEFT, ord('j')] and os.path.exists(os.path.dirname(path)):
-				path = os.path.dirname(path)
+				#ADD HANDLING TO SET SELECTED TO CURRENT DIR
 				selected = 0
+				path = os.path.dirname(path)
 
 			elif c in [curses.KEY_ENTER, 10, 13]:
 				return path
@@ -159,7 +161,12 @@ class structr:
 			self.map_tree(self.args.map, self.args.depth, self.args.show_hidden)
 		else:
 			stdscr = curses.initscr()
-			curses.wrapper(lambda stdscr: self.traverse(stdscr, os.path.realpath(self.args.path), self.args.show_hidden))
+			selected_path = curses.wrapper(lambda stdscr: self.traverse(stdscr, os.path.realpath(self.args.path), self.args.show_hidden))
+			with open(Path.cwd() / "navigate.sh", "w") as f:
+				f.write("#!/bin/bash\n")
+				f.write(". test.sh\n")
+				f.write(f"cd '{selected_path}'\n")
+				f.write("exit 0\n")
 
 if __name__ == "__main__":
 	structr().main()
