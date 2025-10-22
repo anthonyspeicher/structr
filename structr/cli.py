@@ -164,9 +164,9 @@ class structr:
 			selected_path = curses.wrapper(lambda stdscr: self.traverse(stdscr, os.path.realpath(self.args.path), self.args.show_hidden))
 			with open(Path.cwd() / "navigate.sh", "w") as f:
 				f.write("#!/bin/bash\n")
-				f.write(". test.sh\n")
 				f.write(f"cd '{selected_path}'\n")
 				f.write("exit 0\n")
+			os.system(". navigate.sh")
 
 if __name__ == "__main__":
 	structr().main()
