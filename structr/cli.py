@@ -1,6 +1,6 @@
 #Anthony Speicher
 #9/22/2025
-#CLI main file
+#CLI tool main file
 
 import os
 import argparse
@@ -99,6 +99,7 @@ class structr:
 		#setup - invisible cursor, highlighter initialization
 		curses.curs_set(0)
 		selected = 0
+		dirs = self.makedirs(path, hidden)
 
 		while True:
 			stdscr.clear()
@@ -106,11 +107,6 @@ class structr:
 			#print dirs with highlight
 			stdscr.addstr(0, 0, os.path.realpath(path), curses.A_BOLD)
 			stdscr.addstr(1, 0, '-' * (len(os.path.realpath(path)) + 8))
-
-			dirs = [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
-			if not hidden:
-				dirs = [i for i in dirs if not i.startswith('.')]
-			dirs.sort()
 
 			for x, i in enumerate(dirs):
 				if x == selected:
@@ -123,20 +119,21 @@ class structr:
 			#handle keys
 			c = stdscr.getch()
 
-			if c in [curses.KEY_LEFT, ord('j')] and os.path.exists(os.path.dirname(path)):
-				#ADD HANDLING TO SET SELECTED TO CURRENT DIR
-				selected = 0
-				path = os.path.dirname(path)
+			if c in [curses.KEY_LEFT, ord('h')] and os.path.exists(os.path.dirname(path)):
+				#SETTING SELECTED TO CURRENT - CURRENTLY BROKEN
+				previouspath = os.path.basename(path)
+				dirs = self.makedirs(os.path.dirname(path), hidden)
+				selected = dirs.index(previouspath)
 
 			elif c in [curses.KEY_ENTER, 10, 13]:
 				return path
 
 			if len(dirs) > 0:
 
-				if c in [curses.KEY_UP, ord('l')]:
+				if c in [curses.KEY_UP, ord('k')]:
 					selected = (selected - 1) % len(dirs)
 
-				elif c in [curses.KEY_DOWN, ord('k')]:
+				elif c in [curses.KEY_DOWN, ord('j')]:
         	                        selected = (selected + 1) % len(dirs)
 
 				elif c == curses.KEY_PPAGE:
@@ -145,9 +142,16 @@ class structr:
 				elif c == curses.KEY_NPAGE:
         	                        selected = len(dirs) - 1
 
-				elif c in [curses.KEY_RIGHT, ord(';')]:
-					path = os.path.join(path, dirs[selected])
+				elif c in [curses.KEY_RIGHT, ord('l')]:
+					self.makedirs(os.path.join(path, dirs[selected]), hidden)
 					selected = 0
+
+	def makedirs(self, path, hidden):
+		dirs = [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
+		if not hidden:
+			dirs = [i for i in dirs if not i.startswith('.')]
+		dirs.sort()
+		return dirs
 
 	def main(self):
 		#setup

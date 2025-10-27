@@ -1,3 +1,3 @@
 #!/bin/bash
-cd '/home/whitehat/repos/structr/structr/__pycache__'
+cd '/home/whitehat/repos/structr/structr'
 exit 0
