@@ -120,10 +120,9 @@ class structr:
 			c = stdscr.getch()
 
 			if c in [curses.KEY_LEFT, ord('h')] and os.path.exists(os.path.dirname(path)):
-				#SETTING SELECTED TO CURRENT - CURRENTLY BROKEN
-				previouspath = os.path.basename(path)
 				dirs = self.makedirs(os.path.dirname(path), hidden)
-				selected = dirs.index(previouspath)
+				selected = dirs.index(os.path.basename(path))
+				path = os.path.dirname(path)
 
 			elif c in [curses.KEY_ENTER, 10, 13]:
 				return path
@@ -143,7 +142,8 @@ class structr:
         	                        selected = len(dirs) - 1
 
 				elif c in [curses.KEY_RIGHT, ord('l')]:
-					self.makedirs(os.path.join(path, dirs[selected]), hidden)
+					path = os.path.join(path, dirs[selected])
+					dirs = self.makedirs(path, hidden)
 					selected = 0
 
 	def makedirs(self, path, hidden):
