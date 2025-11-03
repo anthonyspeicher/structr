@@ -1,6 +1,6 @@
-#Anthony Speicher
-#9/22/2025
-#CLI tool main file
+# Anthony Speicher
+# 9/22/2025
+# CLI tool main file
 
 import os
 import argparse
@@ -9,8 +9,20 @@ import re
 import filetype
 import curses
 import subprocess
-#import shutil
 
+"""
+
+CUSTOM COLOR SETUP
+  Add the file extensions of files you want colored a certain way to
+  these lists, "dir" for directories. Example: ".txt"
+
+  To add another color, just add the ASCII color sequence to the color
+  variables, a custom list to the color lists starting with your color,
+   and your color list to the main list
+
+"""
+
+# colors
 BLUE = "\033[34m"
 GREEN = "\033[0;32m"
 CYAN = "\033[36m"
@@ -18,12 +30,26 @@ BOLD_CYAN = "\033[1;36m"
 PINK = "\\x1b[38;5;201m"
 RED = "\x1b[31m"
 MAGENTA = "\x1b[35m"
-RESET = "\033[0m"
+UNCOLORED = "\033[0m"
+
+# color lists
+RED_LIST = [RED, ".tar", ".zip"]
+BLUE_LIST = [BLUE, "dir"]
+GREEN_LIST = [GREEN, ".exe", ".sh", ".out"]
+CYAN_LIST = [CYAN, ".mp3", ".wav", ".aiff", ".wma"]
+BOLD_CYAN_LIST = [BOLD_CYAN]
+MAGENTA_LIST = [MAGENTA, ".png", ".jpeg", ".jpg", ".gif", ".svg", ".webm", ".mp4"]
+PINK_LIST = [PINK]
+UNCOLORED_LIST = [UNCOLORED]
+
+# main list
+COLORLIST = [RED_LIST, BLUE_LIST, GREEN_LIST, CYAN_LIST, BOLD_CYAN_LIST, MAGENTA_LIST, PINK_LIST, UNCOLORED_LIST]
 
 
+# main programming
 class structr:
 	def __init__(self):
-		#args
+		# args
 		self.parser = argparse.ArgumentParser(prog='structr',
 		description='A CLI tool to map, build, and traverse directories.')
 		self.parser.add_argument('path', nargs='?', default='.', help='Directory to modify/view')
@@ -31,72 +57,74 @@ class structr:
 		self.parser.add_argument('-b', '--build', type=str, metavar='', help='Builds a given tree from text. Usage: structr -b "<tree>"')
 		self.parser.add_argument('-d', '--depth', type=int, default=None, metavar='', help='Sets depth of recursion (default: unlimited). Usage: structr ../ -d 2')
 		self.parser.add_argument('--show-hidden', action='store_true', help='Shows or builds dotfiles and hidden folders.')
+		self.parser.add_argument('-nc', '--nocolors', action='store_false', help='Disables colors (default: on).  Usage: structr -nc')
+
+	def set_color(self, file):
+		if self.args.nocolors:
+			# sets text color based on file extension
+			if os.path.isdir(file):
+				extension = "dir"
+			else:
+				extension = Path(file).suffix
+			for i in COLORLIST:
+				if extension in i:
+					print(i[0], end="")
 
 	def map_tree(self, path, depth, show_hidden):
-		print(f'{BLUE}{os.path.basename(os.path.realpath(path))}/{RESET}')
-		#var initialization
+		self.set_color(path)
+		print(f'{os.path.basename(os.path.realpath(path))}/{UNCOLORED}')
+		# var initialization
 		indent = '    '
 		contents = sorted(os.listdir(path), key=lambda x: os.path.isdir(os.path.join(path, x)), reverse=True)
+
+		#handle hidden dirs and files
 		if not show_hidden:
 			contents = [i for i in contents if not i.startswith('.')]
 
-		#main - recurse if subdir else print files
+		# main - recurse if subdir else print files
 		for i in range(len(contents)):
 			contents[i] = os.path.join(path, contents[i])
-			distance = (os.path.relpath(contents[i], self.args.path)).count(os.sep) + 1
+			distance = contents[i].count(os.sep)
 
-			#print for each file
+			# print for each file
 			print(f'{indent * (distance - (distance - 1))}', end='')
 			print('│   ' * (distance - 1), end='')
-			if i == len(contents) - 1:
-				print(f'└── ', end='')
-			else:
-				print(f'├── ', end='')
+			print('└── ' if i == len(contents) - 1 else '├── ', end='')
 
 			if os.path.isdir(contents[i]):
-				if depth and (distance >= self.args.depth):
-					print(f'{BLUE}{os.path.basename(contents[i])}/{RESET}')
+				if depth and (distance >= depth):
+					self.set_color(contents[i])
+					print(f'{os.path.basename(contents[i])}/{UNCOLORED}')
 				else:
 					self.map_tree(contents[i], self.args.depth, self.args.show_hidden)
 
 			else:
-				#print file using ls --colors standard
-				type = filetype.guess(contents[i])
-				if os.path.islink(contents[i]):
-					print(BOLD_CYAN, end='')
-				#application check - broken currently, can't find good solution
-				#elif shutil.which(contents[i]):
-					#print(GREEN, end='')
-				elif type != None and str(type).startswith('application/'):
-					print(RED, end='')
-				elif type != None and str(type).startswith('image/'):
-					print(MAGENTA, end='')
-				elif type != None and str(type).startswith('audio/'):
-					print(CYAN, end='')
-				print(f'{os.path.basename(contents[i])}{RESET}')
+				# print file using colors
+				self.set_color(contents[i])
+				print(f'{os.path.basename(contents[i])}{UNCOLORED}')
 
-	def build_tree(self, build, path, depth, show_hidden):
+	def build_tree(self, path, depth, show_hidden):
 #(i for c in list[i] while not c.isalpha())
-		#var initialization
+		# var initialization
 		contents = {os.path.join(path, re.sub(r"[├└│─]", "    ", line).strip()):count(i for c in line if not c.isalpha()) for line in build.splitlines() if line.strip()}
 		if not show_hidden:
 			contents = [x for x in contents if not x.startswith('.')]
 		print(contents)
 
-                #main - print root, recurse if subdir else print lines then filenames
+                # main - print root, recurse if subdir else print lines then filenames
 		for item in contents:
-			distance = (os.path.relpath(item, self.args.path)).count(os.sep)
+			distance = (os.path.relpath(item, self.args.build)).count(os.sep)
 
-                        #print contents/depth check
+                        # print contents/depth check
 			if item.endswith("/"):
 				Path(item).mkdir(parents=True, exist_ok=True)
 				if not (depth and (distance >= self.args.depth)):
-					self.build_tree(build, item, self.args.depth, self.args.show_hidden)
+					self.build_tree(item, self.args.depth, self.args.show_hidden)
 			else:
 				Path(item).touch()
 
 	def traverse(self, stdscr, path, hidden):
-		#setup - invisible cursor, highlighter initialization
+		# setup - invisible cursor, highlighter initialization
 		curses.curs_set(0)
 		selected = 0
 		dirs = self.makedirs(path, hidden)
@@ -104,7 +132,7 @@ class structr:
 		while True:
 			stdscr.clear()
 
-			#print dirs with highlight
+			# print dirs with highlight
 			stdscr.addstr(0, 0, os.path.realpath(path), curses.A_BOLD)
 			stdscr.addstr(1, 0, '-' * (len(os.path.realpath(path)) + 8))
 
@@ -116,7 +144,7 @@ class structr:
 
 			stdscr.refresh()
 
-			#handle keys
+			# handle keys
 			c = stdscr.getch()
 
 			if c in [curses.KEY_LEFT, ord('h')] and os.path.exists(os.path.dirname(path)):
@@ -154,13 +182,17 @@ class structr:
 		return dirs
 
 	def main(self):
-		#setup
+		# setup
 		self.args = self.parser.parse_args()
+		self.args.path = os.path.realpath(self.args.path)
 		print()
 
-		#main script
-		if self.args.build:
-			self.build_tree(self.args.build, self.args.path, self.args.depth, self.args.show_hidden)
+		# main script
+		if self.args.build and self.args.map:
+			print("Cannot map and build at the same time.")
+			return
+		elif self.args.build:
+			self.build_tree(self.args.build, self.args.depth, self.args.show_hidden)
 		elif self.args.map:
 			self.map_tree(self.args.map, self.args.depth, self.args.show_hidden)
 		else:
