@@ -70,6 +70,9 @@ class structr:
 				if extension in i:
 					print(i[0], end="")
 
+	"""
+	THIS NEEDS BUG FIXING WITH STRAIGHT LINES WHEN DIRECTORY DOESN'T HAVE FILES
+	"""
 	def map_tree(self, path, depth, show_hidden):
 		self.set_color(path)
 		print(f'{os.path.basename(os.path.realpath(path))}/{UNCOLORED}')
@@ -105,27 +108,26 @@ class structr:
 
 	def build_tree(self, build, path, depth, show_hidden):
 		# var initialization
-		contents = [line for line in build.splitlines()]
+		contents = [line for line in build.splitlines() if line.endswith("/")]
 		parentdir = contents.pop(0)
-		count = 1
+		count = 2
 		for i in range(len(contents)):
-			if contents[i].endswith("/"):
-				parent = os.path.join(path, parentdir)
-				item = os.path.join(parent, re.sub(r"[├└│─]", " ", contents[i]))
 
-				depth = item.count(" ") / 4
-				if depth > count:
-					count += 1
-					parentdir += item + "/"
-				elif depth < count:
-					delete = count - depth
-					count = depth
-					while delete > 0:
-						parentdir = parentdir[:-1]
-						if parentdir[-1] == "/":
-							delete -= 1
+			item = re.sub(r"[├└│─]", " ", contents[i])
+			depth = item.count(" ") / 4
+			if depth > count:
+				count += 1
+				parentdir += os.path.basename(re.sub(r"\s+", "", contents[i - 1]).rstrip("/. ")) + "/"
 
-				contents[i] = (re.sub(r"/\s+", "/", item))
+			elif depth < count:
+				delete = count - depth
+				count = depth
+				while delete > 0:
+					parentdir = parentdir[:-1]
+					if parentdir[-1] == "/":
+						delete -= 1
+
+			contents[i] = os.path.join(os.path.join(path, parentdir), item)
 
 		if not show_hidden:
 			contents = [i for i in contents if not i.startswith('.')]
@@ -133,13 +135,9 @@ class structr:
                 # main - print root, recurse if subdir else print lines then filenames
 		for item in contents:
 			distance = item.count(" ")
-                        # print contents/depth check
-			if item.endswith("/"):
-				Path(item).mkdir(parents=True, exist_ok=True)
-				if depth and distance >= depth:
-					self.build_tree(os.path.join(build, item), item, self.args.depth, self.args.show_hidden)
-				else:
-					Path(item).touch()
+			item = re.sub(r"/\s+", "/", item)
+			# print contents/depth check
+			os.makedirs(item, exist_ok=True)
 
 	def traverse(self, stdscr, path, hidden):
 		# setup - invisible cursor, highlighter initialization
