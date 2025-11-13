@@ -103,25 +103,43 @@ class structr:
 				self.set_color(contents[i])
 				print(f'{os.path.basename(contents[i])}{UNCOLORED}')
 
-	def build_tree(self, path, depth, show_hidden):
-#(i for c in list[i] while not c.isalpha())
+	def build_tree(self, build, path, depth, show_hidden):
 		# var initialization
-		contents = {os.path.join(path, re.sub(r"[├└│─]", "    ", line).strip()):count(i for c in line if not c.isalpha()) for line in build.splitlines() if line.strip()}
+		contents = [line for line in build.splitlines()]
+		parentdir = contents.pop(0)
+		count = 1
+		for i in range(len(contents)):
+			if contents[i].endswith("/"):
+				parent = os.path.join(path, parentdir)
+				item = os.path.join(parent, re.sub(r"[├└│─]", " ", contents[i]))
+
+				depth = item.count(" ") / 4
+				if depth > count:
+					count += 1
+					parentdir += item + "/"
+				elif depth < count:
+					delete = count - depth
+					count = depth
+					while delete > 0:
+						parentdir = parentdir[:-1]
+						if parentdir[-1] == "/":
+							delete -= 1
+
+				contents[i] = (re.sub(r"/\s+", "/", item))
+
 		if not show_hidden:
-			contents = [x for x in contents if not x.startswith('.')]
-		print(contents)
+			contents = [i for i in contents if not i.startswith('.')]
 
                 # main - print root, recurse if subdir else print lines then filenames
 		for item in contents:
-			distance = (os.path.relpath(item, self.args.build)).count(os.sep)
-
+			distance = item.count(" ")
                         # print contents/depth check
 			if item.endswith("/"):
 				Path(item).mkdir(parents=True, exist_ok=True)
-				if not (depth and (distance >= self.args.depth)):
-					self.build_tree(item, self.args.depth, self.args.show_hidden)
-			else:
-				Path(item).touch()
+				if depth and distance >= depth:
+					self.build_tree(os.path.join(build, item), item, self.args.depth, self.args.show_hidden)
+				else:
+					Path(item).touch()
 
 	def traverse(self, stdscr, path, hidden):
 		# setup - invisible cursor, highlighter initialization
@@ -192,7 +210,7 @@ class structr:
 			print("Cannot map and build at the same time.")
 			return
 		elif self.args.build:
-			self.build_tree(self.args.build, self.args.depth, self.args.show_hidden)
+			self.build_tree(self.args.build, self.args.path, self.args.depth, self.args.show_hidden)
 		elif self.args.map:
 			self.map_tree(self.args.map, self.args.depth, self.args.show_hidden)
 		else:
