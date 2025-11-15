@@ -6,9 +6,7 @@ import os
 import argparse
 from pathlib import Path
 import re
-import filetype
 import curses
-import subprocess
 
 """
 
@@ -46,26 +44,31 @@ UNCOLORED_LIST = [UNCOLORED]
 COLORLIST = [RED_LIST, BLUE_LIST, GREEN_LIST, CYAN_LIST, BOLD_CYAN_LIST, MAGENTA_LIST, PINK_LIST, UNCOLORED_LIST]
 
 
-# main programming
+# main
 class structr:
 	def __init__(self):
-		# args
+		# argument parsing
 		self.parser = argparse.ArgumentParser(prog='structr',
 		description='A CLI tool to map, build, and traverse directories.')
+
 		self.parser.add_argument('path', nargs='?', default='.', help='Directory to modify/view')
 		self.parser.add_argument('-m', '--map', type=str, metavar='', help='Maps a given directory. Usage: structr -m ../')
 		self.parser.add_argument('-b', '--build', type=str, metavar='', help='Builds a given tree from text. Usage: structr -b "<tree>"')
 		self.parser.add_argument('-d', '--depth', type=int, default=None, metavar='', help='Sets depth of recursion (default: unlimited). Usage: structr ../ -d 2')
 		self.parser.add_argument('--show-hidden', action='store_true', help='Shows or builds dotfiles and hidden folders.')
-		self.parser.add_argument('-nc', '--nocolors', action='store_false', help='Disables colors (default: on).  Usage: structr -nc')
+		self.parser.add_argument('-nc', '--nocolors', action='store_true', help='Disables colors (default: on).  Usage: structr -nc')
 
 	def set_color(self, file):
-		if self.args.nocolors:
-			# sets text color based on file extension
+		# sets text color based on file extension if nocolors option not present
+		if not self.args.nocolors:
+
+			# determine filetype
 			if os.path.isdir(file):
 				extension = "dir"
 			else:
 				extension = Path(file).suffix
+
+			# change color of text
 			for i in COLORLIST:
 				if extension in i:
 					print(i[0], end="")
@@ -156,28 +159,49 @@ class structr:
 				if x == selected:
 					stdscr.addstr(x + 3, 2, i, curses.A_REVERSE)
 				else:
-					stdscr.addstr(x + 3, 2, i)
+					try:
+						self.makedirs(path, hidden)
+						stdscr.addstr(x + 3, 2, i)
+
+					except:
+						stdscr.addstr(x + 3, 2, f"{RED}{i}{UNCOLORED}")
 
 			stdscr.refresh()
 
-			# handle keys
+			# handle keys - add any custom keybinds here
 			c = stdscr.getch()
+			extra = False
 
 			if c in [curses.KEY_LEFT, ord('h')] and os.path.exists(os.path.dirname(path)):
-				dirs = self.makedirs(os.path.dirname(path), hidden)
-				selected = dirs.index(os.path.basename(path))
-				path = os.path.dirname(path)
+				# sanity check - can't move into nonexistant paths
+				if os.path.basename(path):
+					dirs = self.makedirs(os.path.dirname(path), hidden)
+					selected = dirs.index(os.path.basename(path))
+					path = os.path.dirname(path)
+
+			elif c == ord('q'):
+				return 0
 
 			elif c in [curses.KEY_ENTER, 10, 13]:
 				return path
 
 			if len(dirs) > 0:
+				if c == 27:
+					extra = True
+					screen.nodelay(True)
+					c = stdscr.getch()
 
-				if c in [curses.KEY_UP, ord('k')]:
+					if c in [curses.KEY_UP, ord('k')]:
+						selected = (selected - 2) % len(dirs)
+
+					elif c in [curses.KEY_DOWN, ord('j')]:
+        	                        	selected = (selected + 2) % len(dirs)
+
+				elif c in [curses.KEY_UP, ord('k')]:
 					selected = (selected - 1) % len(dirs)
 
 				elif c in [curses.KEY_DOWN, ord('j')]:
-        	                        selected = (selected + 1) % len(dirs)
+					selected = (selected + 1) % len(dirs)
 
 				elif c == curses.KEY_PPAGE:
                         	        selected = 0
@@ -186,16 +210,21 @@ class structr:
         	                        selected = len(dirs) - 1
 
 				elif c in [curses.KEY_RIGHT, ord('l')]:
-					path = os.path.join(path, dirs[selected])
-					dirs = self.makedirs(path, hidden)
-					selected = 0
+					# sanity check - can't move into inaccessible directories
+					if self.makedirs(os.path.join(path, dirs[selected]), hidden) != 0:
+						path = os.path.join(path, dirs[selected])
+						dirs = self.makedirs(path, hidden)
+						selected = 0
 
 	def makedirs(self, path, hidden):
-		dirs = [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
-		if not hidden:
-			dirs = [i for i in dirs if not i.startswith('.')]
-		dirs.sort()
-		return dirs
+		try:
+			dirs = [i for i in os.listdir(path) if os.path.isdir(os.path.join(path, i))]
+			if not hidden:
+				dirs = [i for i in dirs if not i.startswith('.')]
+			dirs.sort()
+			return dirs
+		except:
+			return 0
 
 	def main(self):
 		# setup
@@ -214,11 +243,12 @@ class structr:
 		else:
 			stdscr = curses.initscr()
 			selected_path = curses.wrapper(lambda stdscr: self.traverse(stdscr, os.path.realpath(self.args.path), self.args.show_hidden))
-			with open(Path.cwd() / "navigate.sh", "w") as f:
-				f.write("#!/bin/bash\n")
-				f.write(f"cd '{selected_path}'\n")
-				f.write("exit 0\n")
-			os.system(". navigate.sh")
+			if not selected_path == 0:
+				with open(Path.cwd() / "navigate.sh", "w") as f:
+					f.write("#!/bin/bash\n")
+					f.write(f"cd {selected_path}\n")
+					f.write("exec bash\n")
+				os.system("chmod +x navigate.sh && bash navigate.sh")
 
 if __name__ == "__main__":
 	structr().main()
