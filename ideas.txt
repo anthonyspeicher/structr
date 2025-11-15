@@ -1,0 +1,31 @@
+Necessities
+--------------------------------
+
+* Mapping function fix when only directories are present
+
+* Notification text when directory is inaccessible (in progress)
+
+
+
+
+
+Optimization
+--------------------------------
+
+* Bottlenecks with checking validity of directories
+
+
+
+
+
+
+
+Improvement
+--------------------------------
+
+* Alt-Key function (in progress)
+
+* Alphabetic mode? Typing adds to a string which changes selected
+  directory? Would break h, j, k, l feature
+
+* Coloring directories if they're inaccessible
