@@ -1,6 +1,8 @@
 Necessities
 --------------------------------
 
+* Shell script breaks virtual environments - safe mode?
+
 * Mapping function fix when only directories are present
 
 * Notification text when directory is inaccessible (in progress)

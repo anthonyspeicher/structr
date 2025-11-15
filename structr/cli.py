@@ -247,8 +247,10 @@ class structr:
 				with open(Path.cwd() / "navigate.sh", "w") as f:
 					f.write("#!/bin/bash\n")
 					f.write(f"cd {selected_path}\n")
-					f.write("exec bash\n")
-				os.system("chmod +x navigate.sh && bash navigate.sh")
+				os.system(f". {os.path.abspath("navigate.sh")}")
+
+def entry():
+	structr().main()
 
 if __name__ == "__main__":
-	structr().main()
+	entry()
